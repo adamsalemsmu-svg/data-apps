@@ -1,14 +1,16 @@
-﻿__pycache__/
-*.py[cod]
+﻿# Python
 .venv/
 env/
-ENV/
-*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+
+# Editors/OS
 .vscode/
-.idea/
 .DS_Store
 Thumbs.db
-.env
-*.env
-node_modules/
-*.log
+
+# Local data/output
+*.db
