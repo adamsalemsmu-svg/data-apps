@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Analytics</title>
+  <link rel="icon" href="data:,"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+  <style>
+    :root {
+      --bg: #0d1220;
+      --card: #0f1530;
+      --muted: #9bb1ff;
+      --txt: #e7ecff;
+      --soft: #1a2240;
+      --accent: #2b47ff;
+      --chip: #0b1430;
+      --ok: #7ee787;
+    }
+    *,*::before,*::after{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--txt);
+    }
+    .wrap{ max-width:1200px; margin:36px auto; padding:0 20px; }
+    .header{ display:flex; align-items:center; gap:10px; margin-bottom:18px; color:var(--muted); }
+    .header b{ color:var(--txt); }
+    .grid{ display:grid; grid-template-columns: 340px 1fr; gap:18px; }
+    .card{
+      background: var(--card);
+      border:1px solid #202a55;
+      border-radius:14px;
+      padding:14px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.35);
+    }
+    .card h3{ margin:6px 0 12px; font-size:16px; color:var(--muted); }
+    .row{ display:flex; gap:12px; margin-bottom:12px; align-items:center; }
+    .row label{ display:block; font-size:12px; color:#a8b4ff; margin-bottom:6px; }
+    .row .field{ flex:1; }
+    input[type="date"], select, button{
+      width:100%;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid #203165;
+      background:#0d1430;
+      color:var(--txt);
+      outline:none;
+    }
+    button{
+      width:auto;
+      padding:10px 16px;
+      background: var(--accent);
+      border: none;
+      cursor:pointer;
+    }
+    button.secondary{ background:#172259; }
+    .kpis{ display:grid; grid-template-columns: repeat(4,1fr); gap:12px; }
+    .kpi{ background:var(--soft); border-radius:12px; padding:12px; border:1px solid #22316b; }
+    .kpi small{ color:#9db2ff; }
+    .kpi b{ display:block; margin-top:6px; font-size:22px; letter-spacing:0.3px; }
+    .panes{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px; }
+    .tables{ margin-top:12px; display:grid; gap:12px; }
+    table{ width:100%; border-collapse:collapse; }
+    th, td{
+      border-top:1px solid #22316b;
+      padding:10px 8px;
+      text-align:left;
+      font-size:14px;
+    }
+    th{ color:#9bb1ff; font-weight:600; }
+    .chip{ display:inline-block; padding:4px 8px; border-radius:999px; background:var(--chip); border:1px solid #203165; color:#bcd0ff; }
+    .spacer{ height:10px; }
+    .btnrow{ display:flex; gap:10px; align-items:center; }
+    .status{ font-size:12px; color:#8aa2ff; padding:8px 10px; background:#0b1430; border:1px solid #203165; border-radius:8px; }
+    .right{ text-align:right }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <span style="opacity:.75">Key Bot &middot;</span>
+      <b>Analytics</b>
+      <div style="flex:1"></div>
+      <button onclick="location.href='/'">Home</button>
+    </div>
+
+    <div class="grid">
+      <!-- LEFT: Filters -->
+      <div class="card">
+        <h3>Filters</h3>
+
+        <div class="row">
+          <div class="field">
+            <label>Date from</label>
+            <input id="from" type="date"/>
+          </div>
+          <div class="field">
+            <label>Date to</label>
+            <input id="to" type="date"/>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>City</label>
+            <select id="city"></select>
+          </div>
+          <div class="field">
+            <label>Time grain</label>
+            <select id="grain">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="btnrow">
+          <button id="run">Run</button>
+          <button id="reload" class="secondary">Reload Samples</button>
+          <div id="status" class="status">ready</div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Overview -->
+      <div class="card">
+        <h3>Overview</h3>
+        <div class="kpis">
+          <div class="kpi">
+            <small>Total Sales</small>
+            <b id="kpi_total">$0</b>
+          </div>
+          <div class="kpi">
+            <small>Avg Sale</small>
+            <b id="kpi_avg">$0</b>
+          </div>
+          <div class="kpi">
+            <small>Transactions</small>
+            <b id="kpi_tx">0</b>
+          </div>
+          <div class="kpi">
+            <small>Unique Agents</small>
+            <b id="kpi_agents">0</b>
+          </div>
+        </div>
+
+        <div class="panes">
+          <div class="card" style="background:#0c1430; border-color:#1f2b5a;">
+            <canvas id="chartSeries" height="140"></canvas>
+          </div>
+          <div class="card" style="background:#0c1430; border-color:#1f2b5a;">
+            <canvas id="chartCities" height="140"></canvas>
+          </div>
+        </div>
+
+        <div class="tables">
+          <div class="card">
+            <h3>Top Agents</h3>
+            <table id="tbl_agents">
+              <thead>
+                <tr><th>Agent</th><th>Transactions</th><th class="right">Total Sales</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <h3>City Breakdown</h3>
+            <table id="tbl_cities">
+              <thead>
+                <tr><th>City</th><th>Transactions</th><th class="right">Total Sales</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const fmtMoney = (n) => "$" + (n||0).toLocaleString();
+
+    let seriesChart, citiesChart;
+
+    async function getMeta(){
+      const res = await fetch('/analytics/meta');
+      return await res.json();
+    }
+
+    async function runQuery(){
+      const payload = {
+        date_from: $('#from').value,
+        date_to:   $('#to').value,
+        city:      $('#city').value,
+        grain:     $('#grain').value
+      };
+      $('#status').textContent = 'running...';
+      const res = await fetch('/analytics/run', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      $('#status').textContent = 'done';
+      render(data);
+    }
+
+    async function reloadSamples(){
+      $('#status').textContent = 'reloading samples...';
+      await fetch('/analytics/reload_samples', {method:'POST'});
+      $('#status').textContent = 'samples reloaded';
+      await init(); // refresh meta and run
+    }
+
+    function render(d){
+      // KPIs
+      $('#kpi_total').textContent  = fmtMoney(d.overview.total_sales);
+      $('#kpi_avg').textContent    = fmtMoney(d.overview.avg_sale);
+      $('#kpi_tx').textContent     = (d.overview.transactions||0).toLocaleString();
+      $('#kpi_agents').textContent = (d.overview.unique_agents||0).toLocaleString();
+
+      // Series chart
+      const labels = d.series.map(s => s.date);
+      const values = d.series.map(s => s.total_sales);
+      const ctx1 = $('#chartSeries').getContext('2d');
+      if(seriesChart) seriesChart.destroy();
+      seriesChart = new Chart(ctx1, {
+        type:'line',
+        data:{ labels, datasets:[{ label:'Total Sales', data:values, borderColor:'#79a8ff', backgroundColor:'rgba(121,168,255,0.15)', tension:.25, fill:true}]},
+        options:{ plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}}, y:{grid:{color:'#1c2552'}}}}
+      });
+
+      // City chart
+      const cityLabels = d.city_breakdown.map(r => r.city);
+      const cityVals   = d.city_breakdown.map(r => r.total_sales);
+      const ctx2 = $('#chartCities').getContext('2d');
+      if(citiesChart) citiesChart.destroy();
+      citiesChart = new Chart(ctx2, {
+        type:'bar',
+        data:{ labels:cityLabels, datasets:[{ label:'Sales by City', data:cityVals, backgroundColor:'rgba(130,160,255,.35)', borderColor:'#8db1ff'}]},
+        options:{ plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}}, y:{grid:{color:'#1c2552'}}}}
+      });
+
+      // Tables
+      const tbA = $('#tbl_agents tbody');
+      tbA.innerHTML = d.top_agents.map(r =>
+        `<tr><td>${r.agent}</td><td>${r.transactions.toLocaleString()}</td><td class="right">${fmtMoney(r.total_sales)}</td></tr>`
+      ).join('') || `<tr><td colspan="3">No data</td></tr>`;
+
+      const tbC = $('#tbl_cities tbody');
+      tbC.innerHTML = d.city_breakdown.map(r =>
+        `<tr><td>${r.city}</td><td>${r.transactions.toLocaleString()}</td><td class="right">${fmtMoney(r.total_sales)}</td></tr>`
+      ).join('') || `<tr><td colspan="3">No data</td></tr>`;
+    }
+
+    async function init(){
+      const meta = await getMeta();
+      // defaults
+      $('#from').value = meta.min_date;
+      $('#to').value   = meta.max_date;
+      $('#city').innerHTML = meta.cities.map(c => `<option>${c}</option>`).join('');
+      $('#grain').value = 'daily';
+      await runQuery();
+    }
+
+    $('#run').addEventListener('click', runQuery);
+    $('#reload').addEventListener('click', reloadSamples);
+
+    init();
+  </script>
+</body>
+</html>

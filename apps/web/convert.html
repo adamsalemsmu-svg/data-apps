@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Key Bot · T-SQL → Snowflake</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#10162b;
+      --panel-2:#0f1530;
+      --code:#0d1225;
+      --text:#e7eef9;
+      --muted:#9aa7bd;
+      --border:#1d2444;
+      --btn:#1e40af;
+      --btn-hover:#1b3a9c;
+      --chip:#162040;
+      --add:#193a2b;
+      --del:#3a1a1a;
+      /* syntax palette (your chosen colors) */
+      --kw:#c792ea;      /* keywords */
+      --fn:#f78c6c;      /* functions */
+      --dq:#80cbc4;      /* "double-quoted identifiers" */
+      --sq:#f2c38f;      /* 'strings' */
+      --num:#ffcb6b;     /* numbers */
+      --cmt:#8c95a7;     /* comments */
+      --ident:#80cbc4;   /* [dbo] bracket identifiers */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;background:var(--bg);color:var(--text);
+      font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    }
+    .wrap{max-width:1200px;margin:18px auto;padding:0 14px 28px}
+    .crumbs{color:var(--muted);font-size:13px;margin:2px 0 12px}
+    .crumbs b{color:var(--text)}
+    .grid-top,.grid-bottom{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .grid-bottom{margin-top:12px}
+    .panel{
+      background:var(--panel);border:1px solid var(--border);border-radius:10px;
+      overflow:hidden;display:flex;flex-direction:column;
+    }
+    .panel h3{
+      margin:0;padding:9px 10px;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;
+      font-size:12.5px;color:#dbe4ff;font-weight:600;
+      background:linear-gradient(180deg,var(--panel-2),transparent);
+    }
+    .panel .body{padding:10px;min-height:420px;display:flex;flex-direction:column}
+    .panel .body.small{min-height:250px}
+    .bar{display:flex;gap:6px;align-items:center}
+    .seg{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+    .seg button{
+      background:#0f1530;color:#cbd5e1;padding:6px 10px;border:0;border-right:1px solid var(--border);
+      cursor:pointer;font-weight:700;font-size:12px
+    }
+    .seg button:last-child{border-right:0}
+    .seg button.active{background:#1b254b;color:#fff}
+    .btn{appearance:none;border:0;border-radius:8px;background:var(--btn);color:#fff;padding:7px 12px;cursor:pointer;font-weight:700;font-size:12.5px}
+    .btn:hover{background:var(--btn-hover)}
+    textarea,pre{
+      background:var(--code);color:var(--text);border:1px solid var(--border);border-radius:8px;
+      font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    }
+    textarea{resize:none;width:100%;height:100%;padding:12px;outline:none;flex:1}
+    pre{margin:0;padding:12px;white-space:pre-wrap;word-break:break-word;flex:1;overflow:auto}
+    .tip{color:var(--muted);font-size:12px;margin-top:6px}
+    .chip{font-size:12px;color:#a7b4d9;background:var(--chip);border:1px solid var(--border);padding:2px 7px;border-radius:6px}
+
+    /* diff styling */
+    .add{background:var(--add)}
+    .del{background:var(--del)}
+    .line{display:block;padding:0 6px}
+
+    /* syntax classes */
+    .kw{color:var(--kw)}
+    .fn{color:var(--fn)}
+    .dq{color:var(--dq)}
+    .sq{color:var(--sq)}
+    .num{color:var(--num)}
+    .cmt{color:var(--cmt)}
+    .ident{color:var(--ident)}
+
+    @media (max-width:980px){.grid-top,.grid-bottom{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="crumbs">Key Bot · <b>T-SQL</b> · <b>Snowflake</b></div>
+
+    <!-- TOP -->
+    <div class="grid-top">
+      <section class="panel">
+        <h3>
+          <span>Paste T-SQL</span>
+          <button id="convertBtn" class="btn" type="button">Convert to Snowflake</button>
+        </h3>
+        <div class="body">
+          <textarea id="tsql" spellcheck="false" placeholder="Paste your T-SQL here..."></textarea>
+          <div class="tip">Press <b>Ctrl/Cmd + Enter</b> to convert.</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3>
+          <span>Output</span>
+          <div class="bar">
+            <div class="seg">
+              <button id="tabConverted" class="active" type="button">Converted</button>
+              <button id="tabDiff" type="button">Diff</button>
+            </div>
+            <div class="seg">
+              <button id="copyBtn" type="button">Copy</button>
+              <button id="downloadBtn" type="button">Download .sql</button>
+              <button id="reloadBtn" type="button" onclick="window.handleReloadClear && window.handleReloadClear()">Reload</button>
+              <!-- NEW: Home button -->
+              <button id="homeBtn" type="button" title="Go to Home" onclick="location.href='/'">Home</button>
+            </div>
+            <span id="engine" class="chip" style="display:none"></span>
+          </div>
+        </h3>
+        <div class="body">
+          <pre id="out">(awaiting conversion)</pre>
+        </div>
+      </section>
+    </div>
+
+    <!-- BOTTOM (Diff) -->
+    <div id="gridBottom" class="grid-bottom" style="display:none">
+      <section class="panel">
+        <h3><span>Original T-SQL</span></h3>
+        <div class="body small"><pre id="diffLeft"></pre></div>
+      </section>
+      <section class="panel">
+        <h3><span>Snowflake SQL</span></h3>
+        <div class="body small"><pre id="diffRight"></pre></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    const $ = id => document.getElementById(id);
+
+    // Elements
+    const tsqlEl      = $('tsql');
+    const outEl       = $('out');
+    const engineEl    = $('engine');
+    const convertBtn  = $('convertBtn');
+    const reloadBtn   = $('reloadBtn');
+    const copyBtn     = $('copyBtn');
+    const downloadBtn = $('downloadBtn');
+    const homeBtn     = $('homeBtn');
+    const tabConverted= $('tabConverted');
+    const tabDiff     = $('tabDiff');
+    const gridBottom  = $('gridBottom');
+    const diffLeft    = $('diffLeft');
+    const diffRight   = $('diffRight');
+
+    let lastIn  = '';
+    let lastOut = '';
+
+    // ---------------- Samples (cycled on Reload) ----------------
+    const sampleSnippets = [
+`-- Example 1: Users recent
+SELECT TOP (3) [Id], ISNULL([Name], 'N/A') AS [Name]
+FROM [dbo].[Users]
+WHERE [Active] = 1
+ORDER BY [CreatedAt] DESC;`,
+
+`-- Example 2: CTE + window
+WITH AgentSales AS (
+  SELECT a.[full_name], p.[city], SUM(t.[sale_price]) AS TotalSales
+  FROM [dbo].[transactions] t
+  JOIN [dbo].[agents] a ON a.[agent_id] = t.[agent_id]
+  JOIN [dbo].[properties] p ON p.[property_id] = t.[property_id]
+  WHERE t.[created_at] >= DATEADD(month, -3, GETDATE())
+  GROUP BY a.[full_name], p.[city]
+)
+SELECT [city], [full_name], TotalSales,
+       ROW_NUMBER() OVER (PARTITION BY [city] ORDER BY TotalSales DESC) AS rn
+FROM AgentSales;`,
+
+`-- Example 3: Insert + values
+INSERT INTO [dbo].[AuditLog] ([user_id],[action],[created_at])
+VALUES (123,'LOGIN',GETDATE()),(456,'LOGOUT',GETDATE());`,
+
+`-- Example 4: Join + case
+SELECT o.[order_id],
+       CASE WHEN SUM(oi.[qty]) > 10 THEN 'BULK' ELSE 'REGULAR' END AS [order_type]
+FROM [dbo].[orders] o
+JOIN [dbo].[order_items] oi ON oi.[order_id] = o.[order_id]
+GROUP BY o.[order_id];`
+    ];
+
+    function getNextSample() {
+      const key = 'convertSampleIndex';
+      let idx = parseInt(localStorage.getItem(key) || '0', 10);
+      idx = isNaN(idx) ? 0 : idx;
+      const sample = sampleSnippets[idx % sampleSnippets.length];
+      localStorage.setItem(key, String((idx + 1) % sampleSnippets.length));
+      return sample;
+    }
+
+    function loadInitialSample() {
+      tsqlEl.value = getNextSample();
+      outEl.textContent = '(awaiting conversion)';
+      engineEl.style.display = 'none';
+      gridBottom.style.display = 'none';
+      tabConverted.classList.add('active');
+      tabDiff.classList.remove('active');
+      diffLeft.textContent = '';
+      diffRight.textContent = '';
+      lastIn = '';
+      lastOut = '';
+      tsqlEl.focus();
+      tsqlEl.setSelectionRange(tsqlEl.value.length, tsqlEl.value.length);
+    }
+
+    // ---------------- Syntax Highlight ----------------
+    const escapeHTML = s => s.replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));
+    const paintSafe = (html, re, cls) =>
+      html.split(/(<[^>]+>)/g).map(seg => seg.startsWith('<') ? seg : seg.replace(re, `<span class="${cls}">$1</span>`)).join('');
+
+    function highlightSQL(sql){
+      let h = escapeHTML(sql);
+      h = h.replace(/--.*$/gm, m => `<span class="cmt">${m}</span>`);
+      h = h.replace(/\/\*[\s\S]*?\*\//g, m => `<span class="cmt">${m}</span>`);
+      h = h.replace(/"([^"]|"")*"/g, m => `<span class="dq">${m}</span>`);
+      h = h.replace(/'([^']|'')*'/g, m => `<span class="sq">${m}</span>`);
+      h = h.replace(/\[([^\]]+)\]/g, (m,g)=>`<span class="ident">[${g}]</span>`);
+      h = paintSafe(h, /\b(\d+(?:\.\d+)?)\b/g, 'num');
+
+      const fn = ['COALESCE','ISNULL','NVL','DECODE','SUM','COUNT','AVG','MIN','MAX','DATEADD','DATEDIFF','GETDATE','CURRENT_TIMESTAMP','ROW_NUMBER'];
+      h = paintSafe(h, new RegExp('\\b(' + fn.join('|') + ')\\b','gi'), 'fn');
+
+      const kw = [
+        'SELECT','FROM','WHERE','AND','OR','NOT','NULL','IS','IN','AS','WITH','DISTINCT','UNION','ALL',
+        'TOP','LIMIT','ORDER','BY','GROUP','HAVING','OVER','PARTITION','ROWS','RANGE',
+        'CASE','WHEN','THEN','ELSE','END',
+        'JOIN','INNER','LEFT','RIGHT','FULL','OUTER','CROSS','ON','USING',
+        'INSERT','UPDATE','DELETE','VALUES','CREATE','TABLE','VIEW','INDEX','DROP','ALTER','ADD'
+      ];
+      h = paintSafe(h, new RegExp('\\b(' + kw.join('|') + ')\\b','gi'), 'kw');
+      return h;
+    }
+
+    // ---------------- Diff ----------------
+    function renderDiff(aText,bText){
+      const a=aText.split(/\r?\n/), b=bText.split(/\r?\n/);
+      const max=Math.max(a.length,b.length); const L=[],R=[];
+      for(let i=0,j=0;i<max||j<max;){
+        const av=a[i]??'', bv=b[j]??'';
+        if(av===bv){ L.push(`<span class="line">${highlightSQL(av)}</span>`); R.push(`<span class="line">${highlightSQL(bv)}</span>`); i++; j++; }
+        else if((a[i+1]??'')===bv){ L.push(`<span class="line del">- ${highlightSQL(av)}</span>`); R.push(`<span class="line"></span>`); i++; }
+        else if(av===(b[j+1]??'')){ L.push(`<span class="line"></span>`); R.push(`<span class="line add">+ ${highlightSQL(bv)}</span>`); j++; }
+        else{ L.push(`<span class="line del">- ${highlightSQL(av)}</span>`); R.push(`<span class="line add">+ ${highlightSQL(bv)}</span>`); i++; j++; }
+      }
+      diffLeft.innerHTML=L.join('\n'); diffRight.innerHTML=R.join('\n');
+    }
+
+    // ---------------- Convert ----------------
+    async function doConvert(){
+      const tsql = (tsqlEl?.value||'').trim();
+      if(!tsql){ outEl.textContent='(paste some T-SQL first)'; return; }
+
+      outEl.textContent='(converting...)';
+      engineEl.style.display='none';
+
+      try{
+        const res = await fetch('/convert',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ tsql })
+        });
+        if(!res.ok){ outEl.textContent=`HTTP ${res.status}\n${await res.text()}`; return; }
+
+        const data = await res.json().catch(()=>({error:'Invalid JSON'}));
+        const text = data?.snowflake_sql ?? data?.reply ?? data?.result ?? data?.error ?? '(no output)';
+
+        lastIn  = tsql;
+        lastOut = String(text);
+
+        outEl.innerHTML = highlightSQL(lastOut);
+        diffLeft.innerHTML  = highlightSQL(lastIn);
+        diffRight.innerHTML = highlightSQL(lastOut);
+
+        if(data?.using){ engineEl.textContent=`engine: ${data.using}`; engineEl.style.display='inline-block'; }
+      }catch(e){ console.error(e); outEl.textContent='Network error'; }
+    }
+
+    // ---------------- Buttons ----------------
+    convertBtn.addEventListener('click', doConvert);
+
+    // Reload = clear everything + insert next sample (no auto-run)
+    function reloadClearAndNew(){
+      outEl.textContent = '(awaiting conversion)';
+      engineEl.style.display = 'none';
+      gridBottom.style.display = 'none';
+      tabConverted.classList.add('active');
+      tabDiff.classList.remove('active');
+      diffLeft.textContent = '';
+      diffRight.textContent = '';
+      lastIn = '';
+      lastOut = '';
+
+      tsqlEl.value = getNextSample();
+      tsqlEl.focus();
+      tsqlEl.setSelectionRange(tsqlEl.value.length, tsqlEl.value.length);
+      console.log('[reload] cleared + loaded new sample');
+    }
+    // Expose and attach
+    window.handleReloadClear = reloadClearAndNew;
+    reloadBtn.addEventListener('click', reloadClearAndNew);
+
+    // Home (robust even without inline)
+    homeBtn?.addEventListener('click', () => { location.href = '/'; });
+
+    tsqlEl.addEventListener('keydown', e=>{
+      if((e.ctrlKey||e.metaKey)&&e.key==='Enter') doConvert();
+    });
+
+    copyBtn.addEventListener('click', async()=>{
+      try{
+        await navigator.clipboard.writeText(outEl.textContent||'');
+        copyBtn.textContent='Copied'; setTimeout(()=>copyBtn.textContent='Copy',900);
+      }catch{ alert('Copy failed'); }
+    });
+
+    downloadBtn.addEventListener('click', ()=>{
+      const blob = new Blob([outEl.textContent||''],{type:'text/sql'});
+      const url=URL.createObjectURL(blob); const a=document.createElement('a');
+      a.href=url; a.download='converted.sql';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+
+    function showConverted(){ tabConverted.classList.add('active'); tabDiff.classList.remove('active'); gridBottom.style.display='none'; }
+    function showDiff(){ tabDiff.classList.add('active'); tabConverted.classList.remove('active'); gridBottom.style.display='grid'; renderDiff(lastIn,lastOut); }
+    tabConverted.addEventListener('click', showConverted);
+    tabDiff.addEventListener('click', showDiff);
+
+    // Initial state: load a sample, no auto-convert
+    loadInitialSample();
+  })();
+  </script>
+</body>
+</html>

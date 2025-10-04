@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Key Bot · Home</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#10162b;
+      --panel-2:#0f1530;
+      --code:#0d1225;
+      --text:#e7eef9;
+      --muted:#9aa7bd;
+      --border:#1d2444;
+      --btn:#1e40af;
+      --btn-hover:#1b3a9c;
+      --chip:#162040;
+      --accent:#60a5fa;
+      --ok:#10b981;
+      --warn:#f59e0b;
+      --err:#ef4444;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;background:var(--bg);color:var(--text);
+      font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    }
+    .wrap{max-width:1200px;margin:24px auto;padding:0 16px 40px}
+    header{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px
+    }
+    .title{font-weight:800;font-size:22px}
+    .crumbs{color:var(--muted);font-size:13px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:14px}
+    .card{
+      background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;
+      display:flex;flex-direction:column;min-height:180px
+    }
+    .card h3{
+      margin:0;padding:10px 12px;border-bottom:1px solid var(--border);
+      background:linear-gradient(180deg,var(--panel-2),transparent);
+      font-size:13px;color:#dbe4ff;font-weight:700;display:flex;align-items:center;gap:8px
+    }
+    .card .body{padding:12px;flex:1;color:#cbd5e1}
+    .btn{
+      appearance:none;border:0;border-radius:8px;background:var(--btn);color:#fff;
+      padding:8px 12px;cursor:pointer;font-weight:700;font-size:13px
+    }
+    .btn:hover{background:var(--btn-hover)}
+    .btn.ghost{background:transparent;border:1px solid var(--border);color:#dbeafe}
+    .footerbar{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;border-top:1px solid var(--border)}
+    .links{display:flex;gap:8px;flex-wrap:wrap}
+    .link{padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#0d1225;color:#cbd5e1;text-decoration:none;font-weight:600}
+    .link:hover{border-color:#2643a8}
+    .status{display:flex;align-items:center;gap:8px}
+    .chip{font-size:12px;color:#a7b4d9;background:var(--chip);border:1px solid var(--border);padding:3px 8px;border-radius:6px}
+    .chip.ok{color:#b9f6d0;border-color:#134e3a}
+    .chip.warn{color:#ffe8b3;border-color:#4d3b12}
+    .chip.err{color:#fecaca;border-color:#4a1717}
+    @media (max-width:1000px){.grid{grid-template-columns:1fr 1fr}}
+    @media (max-width:700px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <div class="title">Key Bot</div>
+        <div class="crumbs">Home</div>
+      </div>
+      <div class="status">
+        <span id="healthChip" class="chip">checking…</span>
+        <button id="docsBtn" class="btn ghost" type="button">API Docs</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Convert Tool -->
+      <section class="card">
+        <h3>🧪 T-SQL → Snowflake Converter</h3>
+        <div class="body">
+          Convert T-SQL to Snowflake syntax with coloring, Diff view, Copy/Download, and Reload.
+        </div>
+        <div class="footerbar">
+          <a href="/convert.html" class="btn">Open Converter</a>
+          <div class="links">
+            <a class="link" href="/convert.html#tips">Tips</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Analytics -->
+      <section class="card">
+        <h3>📈 Analytics Dashboard</h3>
+        <div class="body">
+          KPIs, trends, top agents, and city breakdown. Currently powered by sample data; ready to wire to Snowflake later.
+        </div>
+        <div class="footerbar">
+          <a href="/analytics.html" class="btn">Open Analytics</a>
+          <div class="links">
+            <a class="link" href="/analytics/health">API Health</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- SQLBot Chat -->
+      <section class="card">
+        <h3>💬 SQLBot Chat</h3>
+        <div class="body">
+          Chat interface with typing indicator, clear history, and local persistence. Great for quick SQL Q&A.
+        </div>
+        <div class="footerbar">
+          <a href="/sqlbot_chat.html" class="btn">Open Chat</a>
+          <div class="links">
+            <a class="link" href="/docs">/docs</a>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div style="margin-top:18px" class="footerbar" role="contentinfo">
+      <div class="links">
+        <a class="link" href="/">Home</a>
+        <a class="link" href="/docs">OpenAPI Docs</a>
+        <a class="link" href="/health">Server Health</a>
+      </div>
+      <div class="crumbs">© <span id="yr"></span> Key Bot</div>
+    </div>
+  </div>
+
+  <script>
+    // year stamp
+    document.getElementById('yr').textContent = new Date().getFullYear();
+
+    // docs button
+    document.getElementById('docsBtn').addEventListener('click', () => {
+      location.href = '/docs';
+    });
+
+    // health check
+    (async function(){
+      const chip = document.getElementById('healthChip');
+      try{
+        const r = await fetch('/health');
+        if (!r.ok) throw new Error('bad status');
+        const data = await r.json();
+        chip.textContent = data.ok ? 'server: ok' : 'server: warn';
+        chip.classList.remove('warn','err');
+        chip.classList.add(data.ok ? 'ok' : 'warn');
+      }catch(e){
+        chip.textContent = 'server: error';
+        chip.classList.remove('ok','warn');
+        chip.classList.add('err');
+      }
+    })();
+  </script>
+</body>
+</html>
