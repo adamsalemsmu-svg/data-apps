@@ -1,23 +1,28 @@
-# DATA-APPS — Data Apps Suite
+# DATA-APPS — Unified Data Apps Suite
 
-One unified app (API + UI) for:
-- 💬 **SQLBot Chat** — a helper for SQL / Snowflake / data questions  
-- 🔁 **T-SQL → Snowflake Converter** — converts common T-SQL constructs to Snowflake SQL  
-- 📊 **Analytics Explorer** — simple BI-like views over sample data (filters & charts)
+## Overview
 
-> Built with **FastAPI + Uvicorn** and lightweight **HTML/CSS/JS**.  
-> Works out-of-the-box locally with sample data and a fallback chat engine.  
-> Optional: wire a real LLM or database for production.
+**Data-Apps** provides a unified experience for exploring data through conversational SQL helpers, automated query translation and lightweight analytics dashboards — all powered by one FastAPI back end and a simple front end. It combines three complementary tools into a single repository:
+
+- **SQLBot Chat** – Ask questions about SQL, Snowflake or your own data. A chat UI posts to the `/chat` endpoint and returns helpful answers. Out of the box it uses a deterministic rules engine; configure an OpenAI API key to enable LLM-powered chat.
+- **T-SQL → Snowflake Converter** – Paste T-SQL on the left and view the equivalent Snowflake SQL on the right. Extras include diff, copy, download `.sql` and reset/clear.
+- **Analytics Explorer** – BI-style dashboards over sample analytics data with filters, KPIs, charts and tables. Extend with your own warehouse by editing the sample files or connecting to Snowflake.
+
+These apps are served via FastAPI + Uvicorn and the static HTML/JS pages in `apps/web`. They work locally with sample data; for production you can connect to Snowflake and configure your own LLM.
 
 **Maintainer:** Adam Salem ([@adamsalemsmu-svg](https://github.com/adamsalemsmu-svg))
 
----
+## Goals
+
+- Demonstrate how to build end-to-end data applications combining APIs, UI and interactive dashboards using pure Python.
+- Provide a starting point for teams to develop internal data tools on top of their existing GitHub repositories.
+- Offer a modular architecture that supports chat, SQL translation and analytics with minimal setup.
 
 ## Table of Contents
 
 - [Quick Start](#quick-start)
 - [Project Structure](#project-structure)
-- [How to Run](#how-to-run)
+- [Running the Apps](#running-the-apps)
 - [Web UI Pages](#web-ui-pages)
 - [API Endpoints](#api-endpoints)
 - [Configuration](#configuration)
@@ -26,198 +31,140 @@ One unified app (API + UI) for:
 - [Deployment](#deployment)
 - [License](#license)
 
----
-
 ## Quick Start
 
 ### Prerequisites
+
 - Python **3.10+**
 - Git
 - Windows PowerShell or macOS/Linux shell
 
-### 1) Clone the repo
+### 1) Clone the repository
+
 ```bash
 git clone --recurse-submodules https://github.com/adamsalemsmu-svg/data-apps.git
 cd data-apps
+```
 
-2) Create a virtual environment & install deps
+### 2) Create a virtual environment & install dependencies
 
-Windows (PowerShell)
+**Windows (PowerShell)**
 
+```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate
 pip install -r requirements.txt
+```
 
+**macOS / Linux**
 
-macOS / Linux
-
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
 
-3) Run the API + static pages
+### 3) Run the API and static pages
 
-Set PYTHONPATH to the repo root so apps/ & packages/ import cleanly.
+Set `PYTHONPATH` to the repo root so packages import cleanly and start the server:
 
-Windows (PowerShell)
+**Windows (PowerShell)**
 
+```powershell
 $env:PYTHONPATH = (Get-Location).Path
 uvicorn apps.api.main:app --reload --port 8000
+```
 
+**macOS / Linux**
 
-macOS / Linux
-
+```bash
 export PYTHONPATH="$(pwd)"
 uvicorn apps.api.main:app --reload --port 8000
+```
 
-4) Open the app
+### 4) Open the apps
 
-Home: http://127.0.0.1:8000/
+Visit the following pages after starting the server:
 
-Converter: http://127.0.0.1:8000/convert.html
+- Home: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+- Converter: [http://127.0.0.1:8000/convert.html](http://127.0.0.1:8000/convert.html)
+- SQLBot Chat: [http://127.0.0.1:8000/sqlbot_chat.html](http://127.0.0.1:8000/sqlbot_chat.html) (alias `/chat`)
+- Analytics: [http://127.0.0.1:8000/analytics.html](http://127.0.0.1:8000/analytics.html)
+- API docs (Swagger): [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
-SQLBot Chat: http://127.0.0.1:8000/sqlbot_chat.html
- (also /chat page alias)
+## Project Structure
 
-Analytics: http://127.0.0.1:8000/analytics.html
-
-API docs (Swagger): http://127.0.0.1:8000/docs
-
-Project Structure
+```
 data-apps/
-├─ apps/
-│  ├─ api/
-│  │  └─ main.py                  # FastAPI app: endpoints + static file serving
-│  └─ web/
-│     ├─ index.html               # Home launcher
-│     ├─ convert.html             # Converter UI
-│     ├─ sqlbot_chat.html         # Chat UI
-│     └─ analytics.html           # Analytics UI
-│
-├─ packages/                      # (git submodules) core logic / helpers
-│  ├─ tsql_to_snowflake/          # Converter rules / utilities
-│  ├─ sqlbot/                     # Chat knowledge / helpers
-│  └─ analytics_lib/              # Sample analytics data & helpers
-│
+├─ apps/                    # App code
+│  ├─ api/                 # FastAPI app: endpoints and static serving
+│  └─ web/                 # HTML pages for the three apps
+│     ├─ index.html        # Home launcher
+│     ├─ convert.html      # Converter UI
+│     ├─ sqlbot_chat.html  # Chat UI
+│     └─ analytics.html    # Analytics UI
+├─ packages/               # Git submodules: core logic / helpers
+│  ├─ t_sql_to_snowflake/  # Converter rules/utilities
+│  ├─ sqlbot/              # Chat knowledge/helpers
+│  └─ analytics_lib/       # Sample analytics data and helpers
 ├─ requirements.txt
 └─ README.md
+```
 
+FastAPI serves the static HTML pages from `apps/web` and exposes JSON endpoints used by those pages via `fetch()`.
 
-Key idea: FastAPI serves the static HTML pages from apps/web/ and exposes JSON endpoints used by those pages via fetch().
+## Running the Apps
 
-How to Run
+You can also run using Docker:
 
-Start locally
+```bash
+docker build -t data-apps .
+docker run -p 8000:8000 data-apps
+```
 
-# Windows
-.\.venv\Scripts\Activate
-set PYTHONPATH=%cd%
-uvicorn apps.api.main:app --reload --port 8000
+## Web UI Pages
 
-# macOS/Linux
-source .venv/bin/activate
-export PYTHONPATH="$(pwd)"
-uvicorn apps.api.main:app --reload --port 8000
+### Converter (`/convert.html`)
 
+Paste T-SQL on the left and view the Snowflake SQL equivalent on the right. Extras: diff, copy, download `.sql`, reload (clear/reset). Common mappings include:
 
-Quick endpoint tests
+- `TOP` → `LIMIT`
+- `ISNULL` → `COALESCE`
+- `GETDATE()` → `CURRENT_TIMESTAMP()`
+- `[ident]` → `"ident"`
 
-# Chat
-curl -X POST http://127.0.0.1:8000/chat/ \
-  -H "Content-Type: application/json" \
-  -d '{"user":"adam","message":"hi"}'
+### SQLBot Chat (`/sqlbot_chat.html`)
 
-# Converter
-curl -X POST http://127.0.0.1:8000/convert \
-  -H "Content-Type: application/json" \
-  -d '{"tsql":"SELECT TOP 5 * FROM dbo.Users; GO"}'
+Enter your name and message; the UI posts to `/chat` and renders replies. Buttons: home, clear (local chat history). By default the bot uses a rules engine; supply `OPENAI_API_KEY` to enable LLM answers by updating the handler.
 
-# Analytics meta
-curl http://127.0.0.1:8000/analytics/meta
+### Analytics (`/analytics.html`)
 
-Web UI Pages
-🏠 Home (/)
+Filters: date range, city, time grain (daily/weekly/monthly). KPIs + charts + tables show top agents and breakdowns. Sample data is deterministic; use your own Snowflake account by configuring environment variables.
 
-Landing page with three tiles:
+## API Endpoints
 
-SQLBot Chat
+| Method | Path        | Description |
+|-------|-------------|-------------|
+| `POST` | `/chat`    | Chat reply request – body: `{ "user", "message" }` |
+| `POST` | `/convert`  | Convert T-SQL → Snowflake – `{ "tsql" }` |
+| `GET`  | `/analytics/meta` | Analytics filter metadata (dates, cities) |
+| `POST` | `/analytics/run` | Analytics run – `{ "date_from", "date_to", "city", "grain" }` |
+| `GET`  | `/docs` | Swagger UI |
+| `GET`  | `/openapi.json` | OpenAPI spec |
 
-T-SQL → Snowflake Converter
+Sample requests are included in the original README for reference.
 
-Analytics Explorer
+## Configuration
 
-🔁 Converter (/convert.html)
+Create a `.env` file (optional) to customize settings such as:
 
-Paste T-SQL (left) → Convert → Snowflake SQL (right)
-
-Extras: Diff, Copy, Download .sql, Reload (clear/reset)
-
-Common mappings: TOP → LIMIT, ISNULL → COALESCE, GETDATE() → CURRENT_TIMESTAMP(),
-[ident] → "ident", WITH (NOLOCK) removed, CONVERT/CAST/DATEADD normalized.
-
-💬 SQLBot Chat (/sqlbot_chat.html)
-
-Enter Name and Message
-
-UI POSTs to /chat and renders replies
-
-Buttons: Home, Clear (local chat history)
-
-By default, the bot uses a small rules engine for helpful answers. You can wire a real LLM later by updating the chat handler to call your provider.
-
-📊 Analytics (/analytics.html)
-
-Filters: date range, city, time grain (daily/weekly/monthly)
-
-KPIs + Charts + Tables (Top Agents, City Breakdown)
-
-Sample data generated in memory (deterministic); “Reload Samples” regenerates it
-
-API Endpoints
-Method	Path	Description
-POST	/chat or /chat/	Chat reply — body: { "user", "message" }
-POST	/convert	Convert T-SQL → Snowflake — { "tsql" }
-GET	/analytics/meta	Analytics filter metadata (dates, cities)
-POST	/analytics/run	Run analytics with filters (body JSON)
-POST	/analytics/reload_samples	Regenerate sample data
-GET	/docs	Swagger UI
-GET	/openapi.json	OpenAPI spec
-
-Chat request
-
-{ "user": "adam", "message": "How do I filter by ROW_NUMBER in Snowflake?" }
-
-
-Converter request
-
-{ "tsql": "SELECT TOP (3) [Id], ISNULL([Name],'N/A') AS Name FROM [dbo].[Users] ORDER BY [CreatedAt] DESC;" }
-
-
-Analytics run request
-
-{
-  "date_from": "2025-06-01",
-  "date_to":   "2025-10-01",
-  "city":      "All",
-  "grain":     "daily"
-}
-
-Configuration
-
-Create a .env (optional):
-
-# Server
+```
 APP_PORT=8000
-
-# CORS (tighten in production)
 CORS_ORIGINS=*
-
-# Optional LLM (enable smart chat)
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
-OPENAI_TEMPERATURE=0.2
 
-# Optional: future Snowflake wiring
+# Snowflake
 SNOWFLAKE_ACCOUNT=
 SNOWFLAKE_USER=
 SNOWFLAKE_PASSWORD=
@@ -225,95 +172,60 @@ SNOWFLAKE_DATABASE=
 SNOWFLAKE_SCHEMA=
 SNOWFLAKE_WAREHOUSE=
 SNOWFLAKE_ROLE=
+```
 
+If `OPENAI_API_KEY` is unset, chat uses a concise rules engine. Set `CORS_ORIGINS` appropriately when deploying.
 
-If OPENAI_API_KEY is unset, chat falls back to a concise rules engine.
+## Working with Submodules
 
-Set CORS appropriately when deploying.
+The `packages/` directory uses git submodules. To modify code inside a submodule:
 
-Working with Submodules
-
-This repo uses git submodules under packages/. If you modify code inside a submodule:
-
-Commit & push inside the submodule folder
-
-Back at the repo root, commit the updated submodule pointer
+1. Commit & push inside the submodule folder.
+2. Then commit the updated submodule pointer at the repository root.
 
 Example (PowerShell):
 
-cd packages\tsql_to_snowflake
-git checkout -B main
+```powershell
+cd packages\t_sql_to_snowflake
+git checkout -b main
 git add -A
 git commit -m "feat: improve converter rules"
 git push -u origin main
 
 cd ..\..
-git add packages\tsql_to_snowflake
+git add packages\t_sql_to_snowflake
 git commit -m "chore: update submodule pointer"
 git push
+```
 
+## Troubleshooting
 
-Clone with submodules:
+- **Page 404** – Ensure the file exists in `apps/web` and the server is running.
+- **Module import errors** – Set `PYTHONPATH` to the repo root before starting Uvicorn.
+- **Chat says “undefined”** – The UI expects `{ reply: "...", user: "...", message: "..." }`. Responders must return that shape and no redirect.
+- **Converter returns same SQL** – Some inputs are already compatible or not covered by rules. Extend the rule set as needed.
+- **CORS errors** – Set `CORS_ORIGINS` to your domain(s) or `*` in development.
 
-git clone --recurse-submodules https://github.com/adamsalemsmu-svg/data-apps.git
+## Deployment
 
-Troubleshooting
+### Basic
 
-Page 404 — ensure the file exists in apps/web/ and the server is running.
-
-Module import errors — set PYTHONPATH to repo root before starting Uvicorn.
-
-Chat says “undefined” — the UI expects { "reply": "..." } JSON; confirm /chat returns that shape and no redirect.
-
-Converter returns same SQL — some inputs are already compatible or not covered by rules; the rule set is pragmatic. Send examples and extend rules as needed.
-
-CORS errors — set CORS_ORIGINS to your domain(s) or * in dev.
-
-Deployment
-
-Basic:
-
+```bash
 export PYTHONPATH="$(pwd)"
 uvicorn apps.api.main:app --host 0.0.0.0 --port 8000
+```
 
+### Gunicorn (production)
 
-Gunicorn (production-style):
-
+```bash
 pip install gunicorn
 gunicorn -k uvicorn.workers.UvicornWorker apps.api.main:app --bind 0.0.0.0:8000
+```
 
+Place a reverse proxy (e.g., Nginx/Apache) in front, configure HTTPS, and lock down CORS and secrets for production.
 
-Place a reverse proxy (Nginx/Apache) in front, configure HTTPS, and lock down CORS & secrets.
+## License
 
-License
-
-MIT License
+MIT License – see the [LICENSE](LICENSE) file for details.
 
 Copyright (c) 2025 Adam Salem
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the “Software”), to deal
-in the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to do so, subject to the following
-conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
-
-### Add & push it to GitHub
-```powershell
-cd C:\Users\Ahmad\data-apps
-Set-Content -Path README.md -Encoding utf8 -Value (Get-Content README.md -Raw)  # ensure UTF-8
-git add README.md
-git commit -m "docs: add README with setup & usage (copyright Adam Salem)"
-git push
