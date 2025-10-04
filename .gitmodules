@@ -1,0 +1,12 @@
+[submodule "packages/sqlbot"]
+	path = packages/sqlbot
+	url = https://github.com/adamsalemsmu-svg/sqlbot.git
+[submodule "packages/tsql_to_snowflake"]
+	path = packages/tsql_to_snowflake
+	url = https://github.com/adamsalemsmu-svg/tsql-to-snowflake.git
+[submodule "packages/analytics_lib"]
+	path = packages/analytics_lib
+	url = https://github.com/adamsalemsmu-svg/Analysis-using-Python-Libraries.git
+[submodule "static/brand"]
+	path = static/brand
+	url = https://github.com/adamsalemsmu-svg/adamsalemsmu-svg.git
