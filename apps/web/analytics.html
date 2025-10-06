@@ -1,277 +1,300 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Analytics</title>
-  <link rel="icon" href="data:,"/>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+  <title>Analytics Explorer</title>
   <style>
-    :root {
-      --bg: #0d1220;
-      --card: #0f1530;
-      --muted: #9bb1ff;
-      --txt: #e7ecff;
-      --soft: #1a2240;
-      --accent: #2b47ff;
-      --chip: #0b1430;
-      --ok: #7ee787;
+    :root{
+      --bg:#0b1220; --panel:#0f172a; --panel-2:#0d1630; --text:#e8eeff; --muted:#9fb0d9;
+      --accent:#2952ff; --accent-2:#1e3ae6; --border:#182246; --surface:#0c152d; --surface-2:#0a1430;
+      --card:#0e1a38; --grid:#12204a; --kpi:#eaf0ff; --kpi-sub:#9fb0d9; --zebra:#0e1b3b;
     }
-    *,*::before,*::after{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background: var(--bg);
-      color: var(--txt);
+    html[data-theme="light"]{
+      --bg:#f5f7ff; --panel:#ffffff; --panel-2:#f3f6ff; --text:#0b1220; --muted:#4a5b87;
+      --accent:#2952ff; --accent-2:#1e3ae6; --border:#d7dff7; --surface:#f6f8ff; --surface-2:#ffffff;
+      --card:#ffffff; --grid:#e8eeff; --kpi:#0b1220; --kpi-sub:#4a5b87; --zebra:#f2f5ff;
     }
-    .wrap{ max-width:1200px; margin:36px auto; padding:0 20px; }
-    .header{ display:flex; align-items:center; gap:10px; margin-bottom:18px; color:var(--muted); }
-    .header b{ color:var(--txt); }
-    .grid{ display:grid; grid-template-columns: 340px 1fr; gap:18px; }
-    .card{
-      background: var(--card);
-      border:1px solid #202a55;
-      border-radius:14px;
-      padding:14px;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.35);
-    }
-    .card h3{ margin:6px 0 12px; font-size:16px; color:var(--muted); }
-    .row{ display:flex; gap:12px; margin-bottom:12px; align-items:center; }
-    .row label{ display:block; font-size:12px; color:#a8b4ff; margin-bottom:6px; }
-    .row .field{ flex:1; }
-    input[type="date"], select, button{
-      width:100%;
-      padding:10px 12px;
-      border-radius:10px;
-      border:1px solid #203165;
-      background:#0d1430;
-      color:var(--txt);
-      outline:none;
-    }
-    button{
-      width:auto;
-      padding:10px 16px;
-      background: var(--accent);
-      border: none;
-      cursor:pointer;
-    }
-    button.secondary{ background:#172259; }
-    .kpis{ display:grid; grid-template-columns: repeat(4,1fr); gap:12px; }
-    .kpi{ background:var(--soft); border-radius:12px; padding:12px; border:1px solid #22316b; }
-    .kpi small{ color:#9db2ff; }
-    .kpi b{ display:block; margin-top:6px; font-size:22px; letter-spacing:0.3px; }
-    .panes{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px; }
-    .tables{ margin-top:12px; display:grid; gap:12px; }
-    table{ width:100%; border-collapse:collapse; }
-    th, td{
-      border-top:1px solid #22316b;
-      padding:10px 8px;
-      text-align:left;
-      font-size:14px;
-    }
-    th{ color:#9bb1ff; font-weight:600; }
-    .chip{ display:inline-block; padding:4px 8px; border-radius:999px; background:var(--chip); border:1px solid #203165; color:#bcd0ff; }
-    .spacer{ height:10px; }
-    .btnrow{ display:flex; gap:10px; align-items:center; }
-    .status{ font-size:12px; color:#8aa2ff; padding:8px 10px; background:#0b1430; border:1px solid #203165; border-radius:8px; }
-    .right{ text-align:right }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+    .wrap{max-width:1180px;margin:36px auto;padding:0 16px}
+    .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 12px 36px rgba(0,0,0,.28)}
+    .hd{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.03)}
+    .ttl{display:flex;gap:10px;align-items:center;font-weight:800}
+    .dot{width:9px;height:9px;border-radius:50%;background:#7aa2ff;box-shadow:0 0 10px #7aa2ff}
+    .btns{display:flex;gap:8px;flex-wrap:wrap}
+    button{all:unset;padding:8px 12px;border-radius:10px;cursor:pointer;user-select:none;background:var(--accent);color:#fff;font-weight:700;transition:.12s}
+    button:hover{background:var(--accent-2)} button:active{transform:scale(.98)}
+    .ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+    html[data-theme="light"] .ghost{background:#eef3ff}
+
+    .toolbar{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:14px 16px;background:var(--surface);border-bottom:1px solid var(--border)}
+    .field{display:flex;flex-direction:column;gap:6px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:10px}
+    label{font-size:12px;color:var(--muted)}
+    input[type="date"],select{all:unset;padding:8px 10px;background:transparent;border:1px solid var(--border);border-radius:8px}
+
+    .presets{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .chip{padding:6px 10px;border-radius:999px;background:#132451;border:1px solid var(--border);font-weight:700;cursor:pointer}
+    html[data-theme="light"] .chip{background:#e9efff}
+    .chip.is-on{box-shadow:0 0 0 2px #4b6bff66 inset}
+
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:12px 16px}
+    .k{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;box-shadow:0 8px 26px rgba(0,0,0,.18)}
+    .k .sub{font-size:12px;color:var(--kpi-sub)}
+    .k .val{font-size:26px;font-weight:900;letter-spacing:.2px;color:var(--kpi)}
+    .k .trend{font-size:12px;opacity:.8}
+
+    .main{display:grid;grid-template-columns:1.1fr .9fr;gap:12px;padding:0 16px 16px}
+    .panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px;overflow:auto}
+    .panel-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+    .muted{color:var(--muted);font-size:12px}
+
+    .chart-wrap{position:relative;height:300px}
+    canvas{width:100%;height:100%;display:block}
+
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+    thead th{position:sticky;top:0;background:var(--surface-2);z-index:1}
+    tbody tr:nth-child(odd){background:var(--zebra)}
+
+    .empty{padding:24px;text-align:center;color:var(--muted)}
+    .spinner{width:16px;height:16px;border:2px solid #7aa2ff55;border-top-color:#7aa2ff;border-radius:50%;display:inline-block;animation:spin .9s linear infinite;vertical-align:middle}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    @media(max-width:980px){.toolbar{grid-template-columns:1fr 1fr}.main{grid-template-columns:1fr}.kpis{grid-template-columns:1fr 1fr}}
+    @media(max-width:620px){.kpis{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="header">
-      <span style="opacity:.75">Key Bot &middot;</span>
-      <b>Analytics</b>
-      <div style="flex:1"></div>
-      <button onclick="location.href='/'">Home</button>
-    </div>
-
-    <div class="grid">
-      <!-- LEFT: Filters -->
-      <div class="card">
-        <h3>Filters</h3>
-
-        <div class="row">
-          <div class="field">
-            <label>Date from</label>
-            <input id="from" type="date"/>
-          </div>
-          <div class="field">
-            <label>Date to</label>
-            <input id="to" type="date"/>
-          </div>
-        </div>
-
-        <div class="row">
-          <div class="field">
-            <label>City</label>
-            <select id="city"></select>
-          </div>
-          <div class="field">
-            <label>Time grain</label>
-            <select id="grain">
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="btnrow">
-          <button id="run">Run</button>
-          <button id="reload" class="secondary">Reload Samples</button>
-          <div id="status" class="status">ready</div>
+    <div class="card">
+      <div class="hd">
+        <div class="ttl"><span class="dot"></span><span>Analytics Explorer</span></div>
+        <div class="btns">
+          <button class="ghost" id="themeBtn">Toggle Theme</button>
+          <button class="ghost" id="reloadBtn">Reload Samples</button>
+          <button class="ghost" id="homeBtn">Home</button>
+          <button id="runBtn">Run</button>
         </div>
       </div>
 
-      <!-- RIGHT: Overview -->
-      <div class="card">
-        <h3>Overview</h3>
-        <div class="kpis">
-          <div class="kpi">
-            <small>Total Sales</small>
-            <b id="kpi_total">$0</b>
-          </div>
-          <div class="kpi">
-            <small>Avg Sale</small>
-            <b id="kpi_avg">$0</b>
-          </div>
-          <div class="kpi">
-            <small>Transactions</small>
-            <b id="kpi_tx">0</b>
-          </div>
-          <div class="kpi">
-            <small>Unique Agents</small>
-            <b id="kpi_agents">0</b>
+      <!-- Filters -->
+      <div class="toolbar">
+        <div class="field"><label>Date From</label><input id="dateFrom" type="date"/></div>
+        <div class="field"><label>Date To</label><input id="dateTo" type="date"/></div>
+        <div class="field"><label>City</label><select id="city"></select></div>
+        <div class="field"><label>Grain</label>
+          <select id="grain"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select>
+        </div>
+        <div class="field">
+          <label>Presets</label>
+          <div class="presets">
+            <span class="chip" data-preset="7d">7D</span>
+            <span class="chip is-on" data-preset="30d">30D</span>
+            <span class="chip" data-preset="qtd">QTD</span>
+            <span class="chip" data-preset="ytd">YTD</span>
+            <span class="chip" data-preset="all">ALL</span>
           </div>
         </div>
+      </div>
 
-        <div class="panes">
-          <div class="card" style="background:#0c1430; border-color:#1f2b5a;">
-            <canvas id="chartSeries" height="140"></canvas>
-          </div>
-          <div class="card" style="background:#0c1430; border-color:#1f2b5a;">
-            <canvas id="chartCities" height="140"></canvas>
-          </div>
+      <!-- KPIs -->
+      <div class="kpis">
+        <div class="k"><div class="sub">Revenue</div><div class="val" id="kRevenue">—</div><div class="trend" id="tRevenue"></div></div>
+        <div class="k"><div class="sub">Orders</div><div class="val" id="kOrders">—</div><div class="trend" id="tOrders"></div></div>
+        <div class="k"><div class="sub">Avg Sale</div><div class="val" id="kAvgSale">—</div><div class="trend">Median not shown</div></div>
+        <div class="k"><div class="sub">Unique Agents</div><div class="val" id="kAgents">—</div><div class="trend">Top 10 below</div></div>
+      </div>
+
+      <!-- Main panels -->
+      <div class="main">
+        <div class="panel">
+          <div class="panel-hd"><div class="muted">Revenue over time</div><div class="muted" id="seriesMeta"></div></div>
+          <div class="chart-wrap"><canvas id="chart"></canvas></div>
+          <div id="chartEmpty" class="empty" style="display:none">No data in selected range.</div>
         </div>
 
-        <div class="tables">
-          <div class="card">
-            <h3>Top Agents</h3>
-            <table id="tbl_agents">
-              <thead>
-                <tr><th>Agent</th><th>Transactions</th><th class="right">Total Sales</th></tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-
-          <div class="card">
-            <h3>City Breakdown</h3>
-            <table id="tbl_cities">
-              <thead>
-                <tr><th>City</th><th>Transactions</th><th class="right">Total Sales</th></tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
+        <div class="panel">
+          <div class="panel-hd"><div class="muted">Rows</div><div class="muted" id="rowsMeta"></div></div>
+          <table id="tbl"><thead><tr><th>Date</th><th>Revenue</th></tr></thead><tbody></tbody></table>
+          <div id="tblEmpty" class="empty" style="display:none">No rows to display.</div>
         </div>
-
       </div>
     </div>
   </div>
 
   <script>
-    const $ = (s) => document.querySelector(s);
-    const fmtMoney = (n) => "$" + (n||0).toLocaleString();
-
-    let seriesChart, citiesChart;
-
-    async function getMeta(){
-      const res = await fetch('/analytics/meta');
-      return await res.json();
-    }
-
-    async function runQuery(){
-      const payload = {
-        date_from: $('#from').value,
-        date_to:   $('#to').value,
-        city:      $('#city').value,
-        grain:     $('#grain').value
+    // ---------- Theme (global) ----------
+    (function(){ const k='theme';
+      document.documentElement.setAttribute('data-theme', localStorage.getItem(k)||'dark');
+      document.getElementById('themeBtn').onclick=()=>{
+        const cur=document.documentElement.getAttribute('data-theme')||'dark';
+        const next=cur==='dark'?'light':'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem(k,next);
       };
-      $('#status').textContent = 'running...';
-      const res = await fetch('/analytics/run', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      $('#status').textContent = 'done';
-      render(data);
+    })();
+
+    // ---------- Elements ----------
+    const $=s=>document.querySelector(s);
+    const dateFrom=$("#dateFrom"), dateTo=$("#dateTo"), city=$("#city"), grain=$("#grain");
+    const chips=[...document.querySelectorAll('.chip')];
+    const kRevenue=$("#kRevenue"), kOrders=$("#kOrders"), kAvgSale=$("#kAvgSale"), kAgents=$("#kAgents");
+    const tRevenue=$("#tRevenue"), tOrders=$("#tOrders");
+    const seriesMeta=$("#seriesMeta"), rowsMeta=$("#rowsMeta");
+    const chartCanvas=$("#chart"), chartEmpty=$("#chartEmpty"), tbl=$("#tbl tbody"), tblEmpty=$("#tblEmpty");
+
+    document.getElementById('homeBtn').onclick=()=>location.href='/';
+    document.getElementById('runBtn').onclick=run;
+    document.getElementById('reloadBtn').onclick=reloadSamples;
+
+    // ---------- Utils ----------
+    const fmtMoney = n => (n==null) ? "—" : "$"+Number(n).toLocaleString();
+    const toISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    function trendNote(rows,key,countMode=false){
+      if(!rows||rows.length<2) return '';
+      const half=Math.floor(rows.length/2), a=rows.slice(0,half), b=rows.slice(half);
+      const sum=(arr,k)=>arr.reduce((s,r)=>s+(Number(r[k])||0),0);
+      const va=countMode?a.length:sum(a,key), vb=countMode?b.length:sum(b,key);
+      if(va===0&&vb===0) return '';
+      const delta=vb-va, pctg=va?(delta/va*100):100, dir=delta>=0?'▲':'▼';
+      return `${dir} ${Math.abs(pctg).toFixed(1)}% vs prior`;
     }
+
+    // ---------- Meta / Presets ----------
+    let _metaCache=null;
+    async function getMeta(){ if(_metaCache) return _metaCache; const r=await fetch('/analytics/meta'); _metaCache=await r.json(); return _metaCache; }
+    function bindMeta(meta){
+      const cities=["All",...(meta.cities||[])];
+      city.innerHTML=cities.map(c=>`<option>${c}</option>`).join("");
+      dateFrom.value=meta.min_date; dateTo.value=meta.max_date;
+    }
+    function setPreset(name,meta){
+      chips.forEach(c=>c.classList.toggle('is-on',c.dataset.preset===name));
+      const min=new Date(meta.min_date), max=new Date(meta.max_date);
+      let a=new Date(max), b=new Date(max);
+      switch(name){
+        case '7d':  a.setDate(b.getDate()-6); break;
+        case '30d': a.setDate(b.getDate()-29); break;
+        case 'qtd': a=new Date(b.getFullYear(), Math.floor(b.getMonth()/3)*3, 1); break;
+        case 'ytd': a=new Date(b.getFullYear(), 0, 1); break;
+        case 'all': a=min; break;
+      }
+      dateFrom.value=toISO(a); dateTo.value=toISO(b);
+    }
+    chips.forEach(c=>c.addEventListener('click', async ()=>{
+      const meta=await getMeta(); setPreset(c.dataset.preset, meta); await run();
+    }));
 
     async function reloadSamples(){
-      $('#status').textContent = 'reloading samples...';
-      await fetch('/analytics/reload_samples', {method:'POST'});
-      $('#status').textContent = 'samples reloaded';
-      await init(); // refresh meta and run
+      const btn=document.getElementById('reloadBtn'); const old=btn.textContent;
+      btn.innerHTML='<span class="spinner"></span> Reloading';
+      try{
+        await fetch('/analytics/reload_samples', {method:'POST'});
+        _metaCache=null; const meta=await getMeta(); bindMeta(meta); setPreset('30d', meta); await run();
+      }finally{ btn.textContent=old; }
     }
 
-    function render(d){
-      // KPIs
-      $('#kpi_total').textContent  = fmtMoney(d.overview.total_sales);
-      $('#kpi_avg').textContent    = fmtMoney(d.overview.avg_sale);
-      $('#kpi_tx').textContent     = (d.overview.transactions||0).toLocaleString();
-      $('#kpi_agents').textContent = (d.overview.unique_agents||0).toLocaleString();
-
-      // Series chart
-      const labels = d.series.map(s => s.date);
-      const values = d.series.map(s => s.total_sales);
-      const ctx1 = $('#chartSeries').getContext('2d');
-      if(seriesChart) seriesChart.destroy();
-      seriesChart = new Chart(ctx1, {
-        type:'line',
-        data:{ labels, datasets:[{ label:'Total Sales', data:values, borderColor:'#79a8ff', backgroundColor:'rgba(121,168,255,0.15)', tension:.25, fill:true}]},
-        options:{ plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}}, y:{grid:{color:'#1c2552'}}}}
-      });
-
-      // City chart
-      const cityLabels = d.city_breakdown.map(r => r.city);
-      const cityVals   = d.city_breakdown.map(r => r.total_sales);
-      const ctx2 = $('#chartCities').getContext('2d');
-      if(citiesChart) citiesChart.destroy();
-      citiesChart = new Chart(ctx2, {
-        type:'bar',
-        data:{ labels:cityLabels, datasets:[{ label:'Sales by City', data:cityVals, backgroundColor:'rgba(130,160,255,.35)', borderColor:'#8db1ff'}]},
-        options:{ plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}}, y:{grid:{color:'#1c2552'}}}}
-      });
-
-      // Tables
-      const tbA = $('#tbl_agents tbody');
-      tbA.innerHTML = d.top_agents.map(r =>
-        `<tr><td>${r.agent}</td><td>${r.transactions.toLocaleString()}</td><td class="right">${fmtMoney(r.total_sales)}</td></tr>`
-      ).join('') || `<tr><td colspan="3">No data</td></tr>`;
-
-      const tbC = $('#tbl_cities tbody');
-      tbC.innerHTML = d.city_breakdown.map(r =>
-        `<tr><td>${r.city}</td><td>${r.transactions.toLocaleString()}</td><td class="right">${fmtMoney(r.total_sales)}</td></tr>`
-      ).join('') || `<tr><td colspan="3">No data</td></tr>`;
+    // ---------- Table & Chart ----------
+    function fillTable(rows){
+      const body=rows.map(r=>`<tr><td>${r.date}</td><td>${fmtMoney(r.revenue)}</td></tr>`).join("");
+      tbl.innerHTML=body;
+      const has=rows&&rows.length; tbl.parentElement.style.display=has?'block':'none'; tblEmpty.style.display=has?'none':'block';
     }
 
-    async function init(){
-      const meta = await getMeta();
-      // defaults
-      $('#from').value = meta.min_date;
-      $('#to').value   = meta.max_date;
-      $('#city').innerHTML = meta.cities.map(c => `<option>${c}</option>`).join('');
-      $('#grain').value = 'daily';
-      await runQuery();
+    function drawLineChart(canvas, rows){
+      const parent=canvas.parentElement, w=parent.clientWidth||600, h=parent.clientHeight||300;
+      const dpr=window.devicePixelRatio||1; canvas.width=Math.floor(w*dpr); canvas.height=Math.floor(h*dpr);
+      canvas.style.width=w+'px'; canvas.style.height=h+'px';
+      const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
+
+      // background grid
+      ctx.fillStyle=getCSS('--card'); ctx.fillRect(0,0,w,h);
+      ctx.strokeStyle=getCSS('--grid'); ctx.lineWidth=1;
+      for(let i=1;i<5;i++){const y=(h/5)*i; ctx.beginPath(); ctx.moveTo(0,y+.5); ctx.lineTo(w,y+.5); ctx.stroke();}
+
+      if(!rows||!rows.length){ chartEmpty.style.display='block'; return; } else chartEmpty.style.display='none';
+
+      const pad={l:40,r:12,t:10,b:28};
+      const pts=rows.map((r,i)=>({x:i,y:Number(r.revenue)||0,d:r.date}));
+      const maxY=Math.max(...pts.map(p=>p.y), 1); const minY=0;
+      const x2px=x=>pad.l+(x*(w-pad.l-pad.r)/Math.max(1,pts.length-1));
+      const y2px=y=>pad.t+((maxY-y)*(h-pad.t-pad.b)/Math.max(1,maxY-minY));
+
+      // axes
+      ctx.strokeStyle=getCSS('--grid'); ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(pad.l,.5); ctx.lineTo(pad.l,h-pad.b+.5); ctx.lineTo(w-pad.r,h-pad.b+.5); ctx.stroke();
+
+      // y ticks
+      ctx.fillStyle=getCSS('--muted'); ctx.font='12px system-ui';
+      const steps=4; for(let i=0;i<=steps;i++){const val=maxY*(i/steps);const y=y2px(val);ctx.fillText("$"+Math.round(val).toLocaleString(),6,y+4);}
+
+      // line
+      ctx.strokeStyle=getCSS('--accent'); ctx.lineWidth=2; ctx.beginPath();
+      pts.forEach((p,i)=>{const X=x2px(i),Y=y2px(p.y); if(i===0) ctx.moveTo(X,Y); else ctx.lineTo(X,Y);}); ctx.stroke();
+
+      // area
+      const grad=ctx.createLinearGradient(0,pad.t,0,h-pad.b); const acc=getCSS('--accent');
+      grad.addColorStop(0,acc+'33'); grad.addColorStop(1,acc+'00'); ctx.fillStyle=grad;
+      ctx.lineTo(x2px(pts.length-1),h-pad.b); ctx.lineTo(x2px(0),h-pad.b); ctx.closePath(); ctx.fill();
+
+      // x labels (sparse)
+      ctx.fillStyle=getCSS('--muted'); const every=Math.ceil(pts.length/8);
+      for(let i=0;i<pts.length;i+=every){const X=x2px(i); ctx.fillText(pts[i].d, X-18, h-8);}
+    }
+    function getCSS(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+    // ---------- Run (ADAPTS to either backend shape) ----------
+    async function run(){
+      const body={date_from:dateFrom.value,date_to:dateTo.value,city:city.value||"All",grain:grain.value||"daily"};
+      seriesMeta.textContent='Loading…'; rowsMeta.textContent='Loading…';
+
+      const res=await fetch('/analytics/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(!res.ok){ seriesMeta.textContent='Error'; rowsMeta.textContent='Error'; alert('Analytics error'); return; }
+      const data=await res.json();
+
+      // Accept either {overview, series} OR {kpis, rows}
+      const overview = data.overview || data.kpis || {};
+      let series = [];
+      if (Array.isArray(data.series)) {
+        series = data.series.map(r => ({date: r.date, revenue: Number(r.total_sales)||0}));
+      } else if (Array.isArray(data.rows)) {
+        series = data.rows.map(r => ({date: r.date, revenue: Number(r.revenue)||0}));
+      }
+
+      // KPIs mapping
+      const revenueTotal = (overview.total_sales ?? overview.revenue ?? 0);
+      const ordersCnt    = (overview.transactions ?? overview.orders ?? 0);
+      const avgSale      = (overview.avg_sale ?? overview.avg_sale ?? 0);
+      const uniqAgents   = (overview.unique_agents ?? overview.unique_agents ?? 0);
+
+      kRevenue.textContent = fmtMoney(revenueTotal);
+      kOrders.textContent  = ordersCnt ? String(ordersCnt) : "—";
+      kAvgSale.textContent = fmtMoney(avgSale);
+      kAgents.textContent  = uniqAgents ? String(uniqAgents) : "—";
+
+      // Trends
+      tRevenue.textContent = trendNote(series, 'revenue');
+      tOrders.textContent  = trendNote(series, 'revenue', true);
+
+      // Table + Chart
+      fillTable(series);
+      drawLineChart(chartCanvas, series);
+
+      const count = series.length;
+      seriesMeta.textContent = count ? `${count} points • ${body.grain}` : 'No series';
+      rowsMeta.textContent   = count ? `${count} rows` : 'No rows';
+
+      if(!count){
+        const meta = await (await fetch('/analytics/meta')).json();
+        seriesMeta.textContent = `No series • Try ${meta.min_date} → ${meta.max_date}`;
+      }
     }
 
-    $('#run').addEventListener('click', runQuery);
-    $('#reload').addEventListener('click', reloadSamples);
-
-    init();
+    // ---------- Boot ----------
+    (async function init(){
+      const meta=await getMeta(); bindMeta(meta); setPreset('30d',meta); await run();
+    })();
   </script>
 </body>
 </html>

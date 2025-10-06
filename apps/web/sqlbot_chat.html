@@ -1,263 +1,282 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SQLBot Chat</title>
-  <style>
-    :root{
-      --bg:#0b1220;
-      --panel:#0f172a;
-      --panel-2:#101a33;
-      --text:#e5edff;
-      --muted:#9fb0d9;
-      --accent:#2952ff;
-      --accent-2:#1e3ae6;
-      --ok:#0ea66a;
-      --danger:#e24a4a;
-      --chip:#10224b;
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      background:var(--bg);
-      color:var(--text);
-      font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
-    }
-    .wrap{
-      max-width:1100px;
-      margin:40px auto;
-      padding:0 16px;
-    }
-    .card{
-      background:linear-gradient(180deg, var(--panel), var(--panel-2));
-      border:1px solid #172143;
-      border-radius:14px;
-      box-shadow:0 10px 30px rgba(0,0,0,.35);
-      overflow:hidden;
-    }
-    .card-hd{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:14px 16px;
-      border-bottom:1px solid #182246;
-      background:rgba(255,255,255,0.02);
-    }
-    .ttl{display:flex;gap:10px;align-items:center;font-weight:700}
-    .ttl .dot{width:9px;height:9px;border-radius:50%;background:#7aa2ff;box-shadow:0 0 10px #7aa2ff}
-    .btns{display:flex;gap:8px}
-    button{
-      all:unset;
-      padding:8px 12px;
-      background:var(--accent);
-      border-radius:8px;
-      cursor:pointer;
-      font-weight:600;
-      color:white;
-      transition:transform .06s ease, background .12s ease, opacity .12s ease;
-      user-select:none;
-    }
-    button:hover{background:var(--accent-2)}
-    button:active{transform:scale(.98)}
-    .btn-ghost{background:#192859;color:#dbe6ff;border:1px solid #22336b}
-    .btn-ghost:hover{background:#1b2f6e}
-    .btn-danger{background:var(--danger)}
-    .pad{padding:12px 14px}
-    #messages{
-      height:58vh;
-      overflow:auto;
-      padding:16px;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      scroll-behavior:smooth;
-      background:radial-gradient(800px 300px at 50% -20%, rgba(41,82,255,.15), transparent 60%);
-    }
-    .msg{
-      max-width:70%;
-      padding:10px 12px;
-      border:1px solid #1a264e;
-      border-radius:12px;
-      word-wrap:break-word;
-      white-space:pre-wrap;
-      line-height:1.35;
-      box-shadow:0 6px 20px rgba(0,0,0,.15);
-    }
-    .user{align-self:flex-end;background:#092045;border-color:#13337e}
-    .bot{align-self:flex-start;background:#0d2519;border-color:#144d36}
-    .chip{
-      display:inline-block;
-      padding:2px 8px;
-      margin-right:6px;
-      border-radius:999px;
-      background:var(--chip);
-      color:#b7cbff;
-      border:1px solid #1c2f6b;
-      font-size:12px;
-      vertical-align:middle;
-    }
-    #typing{height:18px;color:var(--muted);font-style:italic;padding:0 16px 6px}
-    .input-bar{
-      display:flex;gap:10px;align-items:center;padding:12px 14px;border-top:1px solid #182246;background:#0c152d;position:sticky;bottom:0
-    }
-    .field{
-      display:flex;gap:8px;align-items:center;background:#0b1a36;border:1px solid #1a2a55;border-radius:10px;padding:8px 10px;flex:1
-    }
-    .field input{
-      all:unset;color:var(--text);width:100%;
-    }
-    .me{
-      width:130px
-    }
-    .send{
-      background:var(--accent);
-      padding:10px 16px;
-      border-radius:10px
-    }
-    .send:hover{background:var(--accent-2)}
-    .kbd{opacity:.55}
-    @media(max-width:680px){
-      #messages{height:62vh}
-      .msg{max-width:86%}
-      .me{width:100px}
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SQLBot Chat</title>
+<link rel="icon" href="/static/favicon.ico" />
+<style>
+  :root {
+    --bg-light: #f7f8fc;
+    --bg-dark: #0b1220;
+    --card-light: #fff;
+    --card-dark: #151b2d;
+    --text-light: #1b1b1b;
+    --text-dark: #e4e8f5;
+    --accent: #2952ff;
+    --bot-bg: #e9f9ef;
+    --bot-dark: #0f2d20;
+    --border-light: #d9deea;
+    --border-dark: #1f2942;
+  }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif;
+    background-color: var(--bg-light);
+    color: var(--text-light);
+    margin: 0;
+    transition: background 0.3s, color 0.3s;
+  }
+  body.dark {
+    background-color: var(--bg-dark);
+    color: var(--text-dark);
+  }
+  .wrap {
+    max-width: 900px;
+    margin: 40px auto;
+    background: var(--card-light);
+    border-radius: 16px;
+    box-shadow: 0 10px 35px rgba(0,0,0,0.1);
+    overflow: hidden;
+    transition: background 0.3s, color 0.3s;
+  }
+  body.dark .wrap {
+    background: var(--card-dark);
+    box-shadow: 0 0 20px rgba(255,255,255,0.05);
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  body.dark header {
+    border-color: var(--border-dark);
+  }
+  header h1 {
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  header h1::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+  #chat {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: 65vh;
+    overflow-y: auto;
+  }
+  .msg {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    line-height: 1.5;
+    position: relative;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: var(--accent);
+    color: #fff;
+  }
+  .msg.bot {
+    align-self: flex-start;
+    background: var(--bot-bg);
+    border-left: 4px solid #1aa25a;
+  }
+  body.dark .msg.bot {
+    background: var(--bot-dark);
+    border-left: 4px solid #0ea66a;
+  }
+  footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-light);
+  }
+  body.dark footer {
+    border-color: var(--border-dark);
+  }
+  input, button {
+    font-size: 15px;
+  }
+  #name, #text {
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    padding: 10px;
+  }
+  body.dark #name, body.dark #text {
+    background: #0b152b;
+    border-color: #1f2d4f;
+    color: var(--text-dark);
+  }
+  #name {
+    width: 90px;
+  }
+  #text {
+    flex: 1;
+  }
+  #send {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  #send:hover { opacity: 0.9; }
+  #clear, #home, #toggleTheme {
+    background: transparent;
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  body.dark #clear, body.dark #home, body.dark #toggleTheme {
+    border-color: var(--border-dark);
+    color: var(--text-dark);
+  }
+  pre {
+    background: #111;
+    color: #eee;
+    border-radius: 10px;
+    padding: 10px;
+    overflow-x: auto;
+    font-family: monospace;
+    position: relative;
+  }
+  .copyBtn {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    font-size: 12px;
+    background: #333;
+    color: white;
+    border: none;
+    padding: 3px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .copyBtn:hover {
+    background: var(--accent);
+  }
+</style>
 </head>
 <body>
   <div class="wrap">
-    <div class="card">
-      <div class="card-hd">
-        <div class="ttl"><span class="dot"></span><span>SQLBot Chat</span></div>
-        <div class="btns">
-          <button class="btn-ghost" id="homeBtn">Home</button>
-          <button class="btn-ghost btn-danger" id="clearBtn">Clear</button>
-        </div>
+    <header>
+      <h1>SQLBot Chat</h1>
+      <div>
+        <button id="toggleTheme">Toggle Theme</button>
+        <button id="home">Home</button>
+        <button id="clear">Clear</button>
       </div>
-
-      <div id="messages" class="pad"></div>
-      <div id="typing"></div>
-
-      <div class="input-bar">
-        <div class="field me">
-          <span class="kbd">👤</span>
-          <input id="user" value="adam" aria-label="Your name"/>
-        </div>
-        <div class="field">
-          <span class="kbd">💬</span>
-          <input id="text" placeholder="Ask about SQL, Snowflake, or data…" aria-label="Message"/>
-        </div>
-        <button id="sendBtn" class="send">Send</button>
-      </div>
-    </div>
+    </header>
+    <main id="chat"></main>
+    <footer>
+      <input id="name" value="adam" placeholder="Name" />
+      <input id="text" placeholder="Ask about SQL, Snowflake, or conversions..." />
+      <button id="send">Send</button>
+    </footer>
   </div>
 
-  <script>
-    const $ = (s)=>document.querySelector(s);
-    const messages = $("#messages");
-    const typing = $("#typing");
-    const userInp = $("#user");
-    const textInp = $("#text");
-    const sendBtn = $("#sendBtn");
-    const clearBtn = $("#clearBtn");
-    const homeBtn = $("#homeBtn");
+<script>
+const chat = document.getElementById("chat");
+const nameInput = document.getElementById("name");
+const textInput = document.getElementById("text");
+const sendBtn = document.getElementById("send");
+const clearBtn = document.getElementById("clear");
+const homeBtn = document.getElementById("home");
+const toggleTheme = document.getElementById("toggleTheme");
+const STORE = "sqlbot_v3";
 
-    const STORE = "chatHistoryV2";
-
-    function addMsg(sender, text){
-      const b = document.createElement("div");
-      b.className = "msg " + (sender==="user"?"user":"bot");
-      const who = sender==="user" ? userInp.value : `SQLBot`;
-      b.innerHTML = `<span class="chip">${who}</span>${escapeHtml(text)}`;
-      messages.appendChild(b);
-      messages.scrollTop = messages.scrollHeight;
-      save(sender, text);
-    }
-
-    function escapeHtml(s){
-      return (s??"").toString()
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;");
-    }
-
-    function save(sender, text){
-      try{
-        const arr = JSON.parse(localStorage.getItem(STORE)||"[]");
-        arr.push({sender,text,ts:Date.now()});
-        localStorage.setItem(STORE, JSON.stringify(arr));
-      }catch(e){}
-    }
-
-    function load(){
-      try{
-        const arr = JSON.parse(localStorage.getItem(STORE)||"[]");
-        messages.innerHTML="";
-        for(const m of arr){
-          const b = document.createElement("div");
-          b.className = "msg " + (m.sender==="user"?"user":"bot");
-          const who = m.sender==="user"? userInp.value : "SQLBot";
-          b.innerHTML = `<span class="chip">${who}</span>${escapeHtml(m.text)}`;
-          messages.appendChild(b);
-        }
-        messages.scrollTop = messages.scrollHeight;
-      }catch(e){}
-    }
-
-    function setTyping(show, txt="SQLBot is typing…"){
-      typing.textContent = show ? txt : "";
-    }
-
-    async function postJSON(url, body){
-      const res = await fetch(url, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify(body),
-      });
-      if(!res.ok) throw new Error(res.status+" "+res.statusText);
-      return res.json();
-    }
-
-    async function send(){
-      const user = userInp.value.trim();
-      const msg  = textInp.value.trim();
-      if(!user || !msg) return;
-      addMsg("user", msg);
-      textInp.value = "";
-      setTyping(true);
-
-      const payload = { user, message: msg };
-
-      try{
-        // try /chat then /chat/
-        let data;
-        try{
-          data = await postJSON("/chat", payload);
-        }catch(_){
-          data = await postJSON("/chat/", payload);
-        }
-        setTyping(false);
-        addMsg("bot", data?.reply ?? "Hmm, I couldn't parse a reply.");
-      }catch(err){
-        setTyping(false);
-        addMsg("bot", "Error reaching server. Please check the backend.");
-        console.error(err);
-      }
-    }
-
-    sendBtn.addEventListener("click", send);
-    textInp.addEventListener("keydown", (e)=>{ if(e.key==="Enter") send(); });
-    clearBtn.addEventListener("click", ()=>{
-      localStorage.removeItem(STORE);
-      messages.innerHTML="";
-      typing.textContent="";
-      textInp.focus();
+function addMsg(role, html){
+  const d = document.createElement("div");
+  d.className = "msg " + role;
+  d.innerHTML = html;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+function saveHistory(){
+  const msgs = Array.from(chat.children).map(c => ({
+    role: c.className.includes("user")?"user":"bot",
+    html: c.innerHTML
+  }));
+  localStorage.setItem(STORE, JSON.stringify(msgs.slice(-20)));
+}
+function loadHistory(){
+  const arr = JSON.parse(localStorage.getItem(STORE)||"[]");
+  for(const m of arr){
+    addMsg(m.role, m.html);
+  }
+}
+async function send(){
+  const user = nameInput.value.trim();
+  const msg = textInput.value.trim();
+  if(!msg) return;
+  addMsg("user", `<b>${user}</b><br>${msg}`);
+  textInput.value = "";
+  saveHistory();
+  try{
+    const res = await fetch("/chat", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ user, message: msg })
     });
-    homeBtn.addEventListener("click", ()=>{ window.location.href="/"; });
+    const data = await res.json();
+    let reply = data.reply || "No response.";
+    // syntax highlight if code
+    if(reply.includes("SELECT")){
+      reply = reply.replace(/(SELECT|FROM|WHERE|ORDER BY|GROUP BY|AS|AND|OR|NOT|IN|ON|DESC|ASC)/gi, "<b style='color:#f76c6c;'>$1</b>");
+      reply = `<pre><code>${reply}</code></pre>`;
+    }
+    addMsg("bot", `<b>SQLBot</b> - <i>${data.using||"kb"}</i><br>${reply}`);
+    highlightAndCopy();
+    saveHistory();
+  }catch(err){
+    addMsg("bot", "Error reaching server.");
+  }
+}
+sendBtn.onclick = send;
+textInput.addEventListener("keydown", e=>{ if(e.key==="Enter") send(); });
+clearBtn.onclick = ()=>{ localStorage.removeItem(STORE); chat.innerHTML=""; };
+homeBtn.onclick = ()=>{ location.href="/"; };
 
-    // boot
-    load();
-    textInp.focus();
-  </script>
+toggleTheme.onclick = ()=>{
+  document.body.classList.toggle("dark");
+  localStorage.setItem("theme", document.body.classList.contains("dark")?"dark":"light");
+};
+(function(){
+  const t = localStorage.getItem("theme");
+  if(t==="dark") document.body.classList.add("dark");
+  loadHistory();
+})();
+
+function highlightAndCopy(){
+  document.querySelectorAll("pre").forEach(pre=>{
+    if(pre.querySelector(".copyBtn")) return;
+    const btn = document.createElement("button");
+    btn.className="copyBtn";
+    btn.textContent="Copy";
+    btn.onclick=()=>navigator.clipboard.writeText(pre.innerText).then(()=>{
+      btn.textContent="Copied!";
+      setTimeout(()=>btn.textContent="Copy",1000);
+    });
+    pre.appendChild(btn);
+  });
+}
+</script>
 </body>
 </html>

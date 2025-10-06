@@ -1,128 +1,196 @@
 # apps/api/tsql_converter.py
 from __future__ import annotations
 import re
-from typing import List
 
-GO_RE = re.compile(r"^\s*GO\s*;?\s*$", re.IGNORECASE | re.MULTILINE)
+# ------------------------------------------------------------
+# Utilities
+# ------------------------------------------------------------
+_WS = re.compile(r"\s+")
 
-# --- Common replacements (order matters)
-REPLACEMENTS = [
-    # Hints / batch
-    (re.compile(r"\bWITH\s*\(\s*NOLOCK\s*\)", re.IGNORECASE), ""),   # remove NOLOCK
-    # Functions
-    (re.compile(r"\bISNULL\s*\(", re.IGNORECASE), "COALESCE("),
-    (re.compile(r"\bGETDATE\s*\(\s*\)", re.IGNORECASE), "CURRENT_TIMESTAMP()"),
-    (re.compile(r"\bLEN\s*\(", re.IGNORECASE), "LENGTH("),
-    # Types
-    (re.compile(r"\bNVARCHAR\b", re.IGNORECASE), "VARCHAR"),
-    (re.compile(r"\bVARCHAR\s*\(\s*MAX\s*\)", re.IGNORECASE), "VARCHAR"),
-    (re.compile(r"\bDATETIME2?\b", re.IGNORECASE), "TIMESTAMP"),
-]
+DATE_PART_MAP = {
+    # year
+    "yy": "year", "yyyy": "year", "year": "year", "yr": "year",
+    # quarter
+    "qq": "quarter", "q": "quarter", "quarter": "quarter",
+    # month
+    "mm": "month", "m": "month", "month": "month",
+    # week
+    "wk": "week", "ww": "week", "week": "week",
+    # day
+    "dd": "day", "d": "day", "day": "day",
+    # hour
+    "hh": "hour", "hour": "hour",
+    # minute
+    "mi": "minute", "n": "minute", "minute": "minute",
+    # second
+    "ss": "second", "s": "second", "second": "second",
+    # millisecond
+    "ms": "millisecond", "millisecond": "millisecond",
+}
 
-# CONVERT(date, expr [,style]) → TO_DATE(expr)
-CONVERT_DATE_RE = re.compile(
-    r"\bCONVERT\s*\(\s*date\s*,\s*([^)]+?)\s*(?:,\s*\d+\s*)?\)",
-    re.IGNORECASE,
-)
-# CONVERT(varchar(n), expr [,style]) → TO_VARCHAR(expr)
-CONVERT_VARCHAR_RE = re.compile(
-    r"\bCONVERT\s*\(\s*var?char\s*\(\s*\d+\s*\)\s*,\s*([^)]+?)\s*(?:,\s*\d+\s*)?\)",
-    re.IGNORECASE,
-)
-# CAST(x AS NVARCHAR(...)) → CAST(x AS VARCHAR(...))
-CAST_NVARCHAR_RE = re.compile(
-    r"\bCAST\s*\(\s*([^)]+?)\s+AS\s+N?VARCHAR\s*(\(\s*\d+\s*\))?\s*\)",
-    re.IGNORECASE,
-)
+def _strip_trailing_semicolon(sql: str) -> str:
+    return re.sub(r";\s*$", "", sql)
 
-# [object] → "object"
-BRACKET_IDENT_RE = re.compile(r"\[([^\]]+)\]")
+def _quote_idents(sql: str) -> str:
+    # [Ident] -> "Ident"
+    return re.sub(r"\[([^\]]+)\]", r'"\1"', sql)
 
-# SELECT TOP (n) ... → move TOP to LIMIT n at end of statement
-TOP_RE = re.compile(r"\bSELECT\s+TOP\s*\(\s*(\d+)\s*\)\s*", re.IGNORECASE)
+# ------------------------------------------------------------
+# Function & expression rewrites
+# ------------------------------------------------------------
+def _normalize_date_part(token: str) -> str:
+    t = (token or "").strip().lower()
+    return DATE_PART_MAP.get(t, token)
 
-# DATEADD(datepart, n, expr) → DATEADD(datepart, n, expr) (Snowflake accepts datepart as id)
-# Also normalizes quotes around datepart if present
-DATEADD_RE = re.compile(
-    r"\bDATEADD\s*\(\s*'?([a-zA-Z]+)'?\s*,\s*([\-+]?\d+)\s*,\s*([^)]+?)\s*\)",
-    re.IGNORECASE,
-)
-
-def _split_batches(sql: str) -> List[str]:
-    # split on GO, but keep line structure
-    parts = re.split(GO_RE, sql)
-    out = []
-    for p in parts:
-        s = p.strip()
-        if s:
-            out.append(s)
-    return out
-
-def _quote_brackets(s: str) -> str:
-    return BRACKET_IDENT_RE.sub(r'"\1"', s)
-
-def _move_top_to_limit(stmt: str) -> str:
+def _normalize_dateadd_datediff(sql: str) -> str:
     """
-    Turn 'SELECT TOP (n) cols FROM ... [ORDER BY ...];' into
-    'SELECT cols FROM ... [ORDER BY ...] LIMIT n;'
+    Normalizes the first argument (datepart) in DATEADD / DATEDIFF:
+      DATEADD(dd, 7, col)     -> DATEADD(day, 7, col)
+      DATEDIFF(mi, a, b)     -> DATEDIFF(minute, a, b)
+    Leaves the rest unchanged.
     """
-    m = TOP_RE.search(stmt)
+    def _norm_dateadd(m: re.Match) -> str:
+        part = _normalize_date_part(m.group(1))
+        rest = m.group(2)
+        return f"DATEADD({part},{rest})"
+
+    def _norm_datediff(m: re.Match) -> str:
+        part = _normalize_date_part(m.group(1))
+        rest = m.group(2)
+        return f"DATEDIFF({part},{rest})"
+
+    s = re.sub(r"\bDATEADD\s*\(\s*([^,\s)]+)\s*,\s*(.+?)\)", _norm_dateadd, sql, flags=re.IGNORECASE)
+    s = re.sub(r"\bDATEDIFF\s*\(\s*([^,\s)]+)\s*,\s*(.+?)\)", _norm_datediff, s, flags=re.IGNORECASE)
+    return s
+
+def _replace_functions(sql: str) -> str:
+    s = sql
+
+    # ISNULL(x,y) -> COALESCE(x,y)
+    s = re.sub(r"\bISNULL\s*\(", "COALESCE(", s, flags=re.IGNORECASE)
+
+    # GETDATE() -> CURRENT_TIMESTAMP()
+    s = re.sub(r"\bGETDATE\s*\(\s*\)", "CURRENT_TIMESTAMP()", s, flags=re.IGNORECASE)
+
+    # LEN(x) -> LENGTH(x)
+    s = re.sub(r"\bLEN\s*\(", "LENGTH(", s, flags=re.IGNORECASE)
+
+    # LEFT(x,n) -> SUBSTR(x,1,n)
+    # (keeps simple cases; if split fails, leaves as-is)
+    def _left_to_substr(m: re.Match) -> str:
+        inner = m.group(1)
+        parts = [p.strip() for p in inner.split(",", 1)]
+        if len(parts) == 2:
+            return f"SUBSTR({parts[0]}, 1, {parts[1]})"
+        return f"LEFT({inner})"
+
+    s = re.sub(r"\bLEFT\s*\(\s*(.+?)\s*\)", _left_to_substr, s, flags=re.IGNORECASE)
+
+    # CHARINDEX(needle, haystack) -> POSITION(needle IN haystack)
+    def _charindex_to_position(m: re.Match) -> str:
+        inner = m.group(1)
+        parts = [p.strip() for p in inner.split(",", 1)]
+        if len(parts) == 2:
+            return f"POSITION({parts[0]} IN {parts[1]})"
+        return f"CHARINDEX({inner})"
+
+    s = re.sub(r"\bCHARINDEX\s*\(\s*(.+?)\s*\)", _charindex_to_position, s, flags=re.IGNORECASE)
+
+    # TRY_CONVERT(type, expr) -> TRY_CAST(expr AS type)
+    def _try_convert(m: re.Match) -> str:
+        typ = m.group(1).strip()
+        expr = m.group(2).strip()
+        return f"TRY_CAST({expr} AS {typ})"
+
+    s = re.sub(r"\bTRY_CONVERT\s*\(\s*([^)]+?)\s*,\s*(.+?)\s*\)", _try_convert, s, flags=re.IGNORECASE)
+
+    # CONVERT(type, expr) -> CAST(expr AS type)
+    def _convert(m: re.Match) -> str:
+        typ = m.group(1).strip()
+        expr = m.group(2).strip()
+        return f"CAST({expr} AS {typ})"
+
+    s = re.sub(r"\bCONVERT\s*\(\s*([^)]+?)\s*,\s*(.+?)\s*\)", _convert, s, flags=re.IGNORECASE)
+
+    # Remove NOLOCK table hints
+    s = re.sub(r"\bWITH\s*\(\s*NOLOCK\s*\)", "", s, flags=re.IGNORECASE)
+
+    # Normalize DATEADD/DATEDIFF parts
+    s = _normalize_dateadd_datediff(s)
+
+    return s
+
+# ------------------------------------------------------------
+# TOP -> LIMIT
+# ------------------------------------------------------------
+def _rewrite_top_to_limit(stmt: str) -> str:
+    """
+    Rewrites:
+      SELECT TOP (10) col...    -> SELECT col... LIMIT 10
+      SELECT DISTINCT TOP 5 ... -> SELECT DISTINCT ... LIMIT 5
+    Appends LIMIT before final semicolon; keeps ORDER BY, etc.
+    """
+    # if already has LIMIT, do nothing
+    if re.search(r"\bLIMIT\b", stmt, flags=re.IGNORECASE):
+        return stmt
+
+    # TOP (n) / TOP n (with optional DISTINCT)
+    rx = re.compile(
+        r"""
+        ^(?P<prefix>\s*SELECT\s+)
+        (?P<distinct>DISTINCT\s+)?        # optional DISTINCT
+        TOP\s*\(?\s*(?P<n>\d+)\s*\)?\s+   # TOP (n) or TOP n
+        """,
+        re.IGNORECASE | re.VERBOSE,
+    )
+    m = rx.search(stmt)
     if not m:
         return stmt
 
-    n = m.group(1)
-    start, end = m.span()
-    # remove TOP(...) from SELECT
-    stmt2 = stmt[:start] + "SELECT " + stmt[end:]
+    n = m.group("n")
+    prefix = m.group("prefix") or ""
+    distinct = m.group("distinct") or ""
 
-    # append LIMIT n at the end (before final semicolon if present)
-    semi = stmt2.rstrip().endswith(";")
-    if semi:
-        stmt2 = stmt2.rstrip()[:-1].rstrip()
-    # Don't duplicate LIMIT if already present
-    if re.search(r"\bLIMIT\s+\d+\s*;?$", stmt2, re.IGNORECASE) is None:
-        stmt2 += f"\nLIMIT {n}"
-    return stmt2 + ";"
+    # remainder of SELECT after TOP (...)
+    rest = stmt[m.end():]
+    rest_no_sc = _strip_trailing_semicolon(rest)
 
-def _apply_simple_replacements(stmt: str) -> str:
-    for rx, repl in REPLACEMENTS:
-        stmt = rx.sub(repl, stmt)
-    # CONVERT
-    stmt = CONVERT_DATE_RE.sub(r"TO_DATE(\1)", stmt)
-    stmt = CONVERT_VARCHAR_RE.sub(r"TO_VARCHAR(\1)", stmt)
-    # CAST NVARCHAR
-    stmt = CAST_NVARCHAR_RE.sub(lambda m: f'CAST({m.group(1)} AS VARCHAR{m.group(2) or ""})', stmt)
-    # DATEADD('part', n, expr) → DATEADD(part, n, expr)  (Snowflake accepts bare identifier)
-    stmt = DATEADD_RE.sub(lambda m: f"DATEADD({m.group(1).upper()}, {m.group(2)}, {m.group(3)})", stmt)
-    return stmt
+    # place LIMIT at the end
+    return f"{prefix}{distinct}{rest_no_sc} LIMIT {n};"
 
+def _statementwise_top_limit(sql: str) -> str:
+    """
+    Apply TOP->LIMIT per statement; naive semicolon split that respects quotes.
+    Works well for common single/flat queries used in the app.
+    """
+    parts = re.split(r"(;)(?=(?:[^'\"\\]|\\.|'(?:\\.|[^'])*'|\"(?:\\.|[^\"])*\")*$)", sql)
+    out = []
+    buffer = ""
+    for p in parts:
+        if p == ";":
+            fixed = _rewrite_top_to_limit(buffer)
+            out.append(_strip_trailing_semicolon(fixed) + ";")
+            buffer = ""
+        else:
+            buffer += p
+    if buffer.strip():
+        out.append(_rewrite_top_to_limit(buffer))
+    return "".join(out)
+
+# ------------------------------------------------------------
+# Public API
+# ------------------------------------------------------------
 def convert_tsql_to_snowflake(tsql: str) -> str:
-    """
-    Pragmatic converter for common T-SQL → Snowflake cases.
-    Keeps formatting reasonably intact.
-    """
-    if not tsql.strip():
+    if not tsql:
         return ""
 
-    # 1) split on GO (batches)
-    batches = _split_batches(tsql)
+    s = tsql.replace("\r\n", "\n")                # normalize EOLs
+    s = _quote_idents(s)                          # [ident] -> "ident"
+    s = _replace_functions(s)                     # functions & hints
+    s = _statementwise_top_limit(s)               # TOP -> LIMIT
 
-    converted: List[str] = []
-    for b in batches:
-        # keep original formatting as much as possible
-        # 2) quote [ident] → "ident"
-        s = _quote_brackets(b)
+    # light whitespace tidy that won't change semantics
+    s = re.sub(r"[ \t]+(\,|\))", r"\1", s)
+    s = re.sub(r"\(\s+", "(", s)
 
-        # 3) TOP → LIMIT
-        s = _move_top_to_limit(s)
-
-        # 4) other replacements
-        s = _apply_simple_replacements(s)
-
-        # 5) ensure each batch ends with semicolon
-        if not s.rstrip().endswith(";"):
-            s += ";"
-        converted.append(s)
-
-    # Join with blank line between batches
-    return "\n\n".join(converted)
+    return s
